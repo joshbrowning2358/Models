@@ -21,7 +21,7 @@ fitNaiveBayesRegression <- function(X, y, log=FALSE){
     stopifnot(length(y) == nrow(X))
     
     if(log){
-        y = log(y)
+        y = log(y + 1)
     }
     
     # Fit the model
@@ -42,7 +42,7 @@ fitNaiveBayesRegression <- function(X, y, log=FALSE){
     return(model)
 }
 
-predictNaiveBayesRegression <- function(model, X){
+predictNaiveBayesRegression <- function(model, X, allowNewLevel=TRUE){
     X = copy(X)
     X[, id_ := 1:.N]
     X[, pred_ := model$globalMean]
@@ -51,13 +51,18 @@ predictNaiveBayesRegression <- function(model, X){
         toMerge = model$model[variable == var, ]
         setnames(toMerge, "level", var)
         toMerge[, variable := NULL]
-        X = merge(X, toMerge, by=var)
+        X = merge(X, toMerge, by=var, all.x=TRUE)
+        if(allowNewLevel){
+            X[is.na(adjustment), adjustment := 0]
+        } else {
+            stopifnot(all(!is.na(X$adjustment)))
+        }
         X[, pred_ := pred_ + adjustment]
         X[, adjustment := NULL]
     }
     pred = X[order(id_), pred_]
     if(model$log){
-        pred = exp(pred)
+        pred = exp(pred) - 1
     }
     X[, c("id_", "pred_") := NULL]
     return(pred)
